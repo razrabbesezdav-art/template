@@ -1,8 +1,5 @@
-
 .env
 .tripgo/
-
-
 bin/
-
 .DS_Store
+course-infra/
