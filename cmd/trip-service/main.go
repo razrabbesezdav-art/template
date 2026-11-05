@@ -12,12 +12,12 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/razrabbesezdav-art/template/internal/config"
-	"github.com/razrabbesezdav-art/template/internal/database"
+	"github.com/razrabbesezdav-art/template/internal/container"
 	api "github.com/razrabbesezdav-art/template/internal/generated"
-	"github.com/razrabbesezdav-art/template/internal/handler"
-	"github.com/razrabbesezdav-art/template/internal/repository"
-	"github.com/razrabbesezdav-art/template/internal/service"
-	"github.com/razrabbesezdav-art/template/internal/transaction"
+	httplayer "github.com/razrabbesezdav-art/template/internal/http"
+	"github.com/razrabbesezdav-art/template/internal/http/trip/create"
+	"github.com/razrabbesezdav-art/template/internal/http/trip/finish"
+	"github.com/razrabbesezdav-art/template/internal/http/trip/get"
 )
 
 func main() {
@@ -26,46 +26,27 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 
-	ctx, stop := signal.NotifyContext(
-		context.Background(),
-		os.Interrupt,
-		syscall.SIGTERM,
-	)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := database.NewPostgres(ctx, cfg)
+	c, err := container.New(ctx, cfg)
 	if err != nil {
-		log.Fatalf("connect to PostgreSQL: %v", err)
+		log.Fatalf("init container: %v", err)
 	}
-	defer pool.Close()
+	defer c.DB.Close()
 
-	txManager := transaction.NewManager(
-		transaction.NewPGXBeginner(pool),
-	)
+	createHandler := create.NewHandler(c.CreateUC)
+	getHandler := get.NewHandler(c.GetUC)
+	finishHandler := finish.NewHandler(c.FinishUC)
 
-	tripsRepo := repository.NewTrips(pool, cfg.DatabaseQueryTimeout)
-	historyRepo := repository.NewHistory(pool, cfg.DatabaseQueryTimeout)
-
-	tripService := service.NewTrips(
-		txManager,
-		tripsRepo,
-		historyRepo,
-	)
-
-	tripHandler := handler.NewTrips(tripService, pool, cfg.ReadyTimeout)
-
-	router := chi.NewRouter()
-
-	apiHandler := api.HandlerWithOptions(tripHandler, api.ChiServerOptions{
-		BaseRouter: router,
-		ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
-			handler.WriteProblem(w, http.StatusBadRequest, "invalid_request", err.Error())
-		},
-	})
+	router := httplayer.NewRouter(createHandler, getHandler, finishHandler)
+	
+	chiRouter := chi.NewRouter()
+	api.HandlerFromMux(router, chiRouter)
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           apiHandler,
+		Handler:           chiRouter,
 		ReadTimeout:       cfg.HTTPReadTimeout,
 		ReadHeaderTimeout: cfg.HTTPReadTimeout,
 		WriteTimeout:      cfg.HTTPWriteTimeout,
@@ -73,7 +54,6 @@ func main() {
 	}
 
 	serverErr := make(chan error, 1)
-
 	go func() {
 		log.Printf("HTTP server listening on %s", cfg.HTTPAddr)
 		serverErr <- server.ListenAndServe()
@@ -84,27 +64,16 @@ func main() {
 		if !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("HTTP server: %v", err)
 		}
-
 	case <-ctx.Done():
 		log.Println("shutdown signal received")
-
-		shutdownCtx, cancel := context.WithTimeout(
-			context.Background(),
-			cfg.ShutdownTimeout,
-		)
+		
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+		defer cancel()
 
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			log.Printf("graceful shutdown failed: %v", err)
 			_ = server.Close()
 		}
-
-		cancel()
-
-		if err := <-serverErr; err != nil &&
-			!errors.Is(err, http.ErrServerClosed) {
-			log.Printf("HTTP server shutdown: %v", err)
-		}
-
 		log.Println("server stopped")
 	}
 }

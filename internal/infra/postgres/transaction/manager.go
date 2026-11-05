@@ -7,9 +7,10 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/pgconn" 
 )
 
-// Tx — интерфейс для работы с транзакцией в репозиториях.
+
 type Tx interface {
 	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
 	QueryRow(context.Context, string, ...any) pgx.Row
@@ -19,7 +20,7 @@ type Tx interface {
 
 type txContextKey struct{}
 
-// TxFromContext возвращает транзакцию из контекста.
+
 func TxFromContext(ctx context.Context) (Tx, bool) {
 	tx, ok := ctx.Value(txContextKey{}).(Tx)
 	return tx, ok
