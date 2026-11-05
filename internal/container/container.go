@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-
+	"github.com/exaring/otelpgx"
 	"github.com/razrabbesezdav-art/template/internal/config"
 	"github.com/razrabbesezdav-art/template/internal/infra/postgres/transaction"
 	"github.com/razrabbesezdav-art/template/internal/repository/trip"
@@ -22,7 +22,13 @@ type Container struct {
 }
 
 func New(ctx context.Context, cfg config.Config) (*Container, error) {
-	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	pgxCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	pgxCfg.ConnConfig.Tracer = otelpgx.NewTracer()
+
+	pool, err := pgxpool.NewWithConfig(ctx, pgxCfg)
 	if err != nil {
 		return nil, err
 	}
