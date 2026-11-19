@@ -23,6 +23,7 @@ import (
 	"github.com/razrabbesezdav-art/template/internal/http/trip/finish"
 	"github.com/razrabbesezdav-art/template/internal/http/trip/get"
 	"github.com/razrabbesezdav-art/template/internal/infra/telemetry"
+	"github.com/razrabbesezdav-art/template/internal/http/trip/position"
 )
 
 func main() {
@@ -55,8 +56,9 @@ func main() {
 	createHandler := create.NewHandler(c.CreateUC)
 	getHandler := get.NewHandler(c.GetUC)
 	finishHandler := finish.NewHandler(c.FinishUC)
+	positionHandler := position.NewHandler(c.PositionSaveUC, c.PositionGetUC) 
 
-	router := httplayer.NewRouter(createHandler, getHandler, finishHandler)
+	router := httplayer.NewRouter(createHandler, getHandler, finishHandler, positionHandler)
 	chiRouter := chi.NewRouter()
 
 

@@ -7,23 +7,27 @@ import (
 	"github.com/razrabbesezdav-art/template/internal/http/trip/create"
 	"github.com/razrabbesezdav-art/template/internal/http/trip/finish"
 	"github.com/razrabbesezdav-art/template/internal/http/trip/get"
+	"github.com/razrabbesezdav-art/template/internal/http/trip/position"
 )
 
 type Router struct {
-	create *create.Handler
-	get    *get.Handler
-	finish *finish.Handler
+	create   *create.Handler
+	get      *get.Handler
+	finish   *finish.Handler
+	position *position.Handler
 }
 
 func NewRouter(
 	createHandler *create.Handler,
 	getHandler *get.Handler,
 	finishHandler *finish.Handler,
+	positionHandler *position.Handler,
 ) *Router {
 	return &Router{
-		create: createHandler,
-		get:    getHandler,
-		finish: finishHandler,
+		create:   createHandler,
+		get:      getHandler,
+		finish:   finishHandler,
+		position: positionHandler,
 	}
 }
 
@@ -40,11 +44,11 @@ func (r *Router) FinishTrip(w http.ResponseWriter, req *http.Request, tripId api
 }
 
 func (r *Router) ListTripPositions(w http.ResponseWriter, req *http.Request, tripId api.TripId) {
-	w.WriteHeader(http.StatusNotImplemented)
+	r.position.ListTripPositions(w, req)
 }
 
 func (r *Router) CreateTripPosition(w http.ResponseWriter, req *http.Request, tripId api.TripId) {
-	w.WriteHeader(http.StatusNotImplemented)
+	r.position.CreateTripPosition(w, req)
 }
 
 func (r *Router) Health(w http.ResponseWriter, req *http.Request) {

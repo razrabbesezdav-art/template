@@ -13,6 +13,7 @@ import (
 
 type Tx interface {
 	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+	Query(context.Context, string, ...any) (pgx.Rows, error)
 	QueryRow(context.Context, string, ...any) pgx.Row
 	Commit(context.Context) error
 	Rollback(context.Context) error
@@ -69,4 +70,8 @@ func (m *Manager) Do(ctx context.Context, fn func(ctx context.Context) error) (e
 	}
 
 	return nil
+}
+
+func WithTxForTest(ctx context.Context, tx Tx) context.Context {
+	return context.WithValue(ctx, txContextKey{}, tx)
 }

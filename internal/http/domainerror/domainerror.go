@@ -10,6 +10,15 @@ import (
 
 func Problem(err error) (int, api.Problem) {
 	switch {
+	case errors.Is(err, trip.ErrInvalidLatitude),
+		errors.Is(err, trip.ErrInvalidLongitude),
+		errors.Is(err, trip.ErrRecordedInFuture):
+		return http.StatusBadRequest, api.Problem{
+			Code:   "invalid_request",
+			Title:  "Invalid coordinates or recorded_at",
+			Status: http.StatusBadRequest,
+			Type:   "about:blank",
+		}
 	case errors.Is(err, trip.ErrTripNotFound):
 		return http.StatusNotFound, api.Problem{
 			Code:   "trip_not_found",

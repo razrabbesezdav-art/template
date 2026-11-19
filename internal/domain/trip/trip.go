@@ -25,6 +25,7 @@ type Trip struct {
 	status     Status
 	startedAt  time.Time
 	finishedAt *time.Time
+	lastPositionAt *time.Time
 }
 
 func New(
@@ -90,3 +91,4 @@ func (t *Trip) Price() int64           { return t.price }
 func (t *Trip) Status() Status         { return t.status }
 func (t *Trip) StartedAt() time.Time   { return t.startedAt }
 func (t *Trip) FinishedAt() *time.Time { return t.finishedAt }
+func (t *Trip) LastPositionAt() *time.Time { return t.lastPositionAt }
