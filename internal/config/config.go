@@ -22,6 +22,12 @@ type Config struct {
 	HTTPWriteTimeout time.Duration
 	HTTPIdleTimeout  time.Duration
 	ReadyTimeout     time.Duration
+	PositionCheckInterval time.Duration
+	PositionStaleAfter    time.Duration
+	PositionWorkers       int
+	PositionQueueSize     int
+	PushHTTPURL           string
+	PushRequestTimeout    time.Duration
 }
 
 func Load() (Config, error) {
@@ -67,6 +73,25 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.ReadyTimeout, err = durationEnv("READY_TIMEOUT"); err != nil {
+		return Config{}, err
+	}
+
+		if cfg.PositionCheckInterval, err = durationEnv("POSITION_CHECK_INTERVAL"); err != nil {
+		return Config{}, err
+	}
+	if cfg.PositionStaleAfter, err = durationEnv("POSITION_STALE_AFTER"); err != nil {
+		return Config{}, err
+	}
+	if cfg.PositionWorkers, err = intEnv("POSITION_WORKERS"); err != nil {
+		return Config{}, err
+	}
+	if cfg.PositionQueueSize, err = intEnv("POSITION_QUEUE_SIZE"); err != nil {
+		return Config{}, err
+	}
+	if cfg.PushHTTPURL, err = requiredEnv("PUSH_HTTP_URL"); err != nil {
+		return Config{}, err
+	}
+	if cfg.PushRequestTimeout, err = durationEnv("PUSH_REQUEST_TIMEOUT"); err != nil {
 		return Config{}, err
 	}
 

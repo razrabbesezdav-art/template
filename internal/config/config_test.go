@@ -19,6 +19,13 @@ var testEnv = map[string]string{
 	"HTTP_WRITE_TIMEOUT":         "10s",
 	"HTTP_IDLE_TIMEOUT":          "60s",
 	"READY_TIMEOUT":              "5s",
+
+	"POSITION_CHECK_INTERVAL": "30s",
+	"POSITION_STALE_AFTER":    "60s",
+	"POSITION_WORKERS":        "4",
+	"POSITION_QUEUE_SIZE":     "100",
+	"PUSH_HTTP_URL":           "http://localhost:8081",
+	"PUSH_REQUEST_TIMEOUT":    "1s",
 }
 
 func setValidEnv(t *testing.T) {

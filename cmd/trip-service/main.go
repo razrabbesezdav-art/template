@@ -22,8 +22,8 @@ import (
 	"github.com/razrabbesezdav-art/template/internal/http/trip/create"
 	"github.com/razrabbesezdav-art/template/internal/http/trip/finish"
 	"github.com/razrabbesezdav-art/template/internal/http/trip/get"
-	"github.com/razrabbesezdav-art/template/internal/infra/telemetry"
 	"github.com/razrabbesezdav-art/template/internal/http/trip/position"
+	"github.com/razrabbesezdav-art/template/internal/infra/telemetry"
 )
 
 func main() {
@@ -45,31 +45,25 @@ func main() {
 		_ = shutdownTelemetry(context.Background())
 	}()
 
-
-	c, err := container.New(ctx, cfg)
+	c, err := container.New(ctx, cfg, logger)
 	if err != nil {
 		log.Fatalf("init container: %v", err)
 	}
 	defer c.DB.Close()
 
-
 	createHandler := create.NewHandler(c.CreateUC)
 	getHandler := get.NewHandler(c.GetUC)
 	finishHandler := finish.NewHandler(c.FinishUC)
-	positionHandler := position.NewHandler(c.PositionSaveUC, c.PositionGetUC) 
+	positionHandler := position.NewHandler(c.PositionSaveUC, c.PositionGetUC)
 
 	router := httplayer.NewRouter(createHandler, getHandler, finishHandler, positionHandler)
 	chiRouter := chi.NewRouter()
 
-
 	chiRouter.Use(middleware.Logging(logger))
 	chiRouter.Use(middleware.Metrics())
-	
 
 	tracedRouter := otelhttp.NewHandler(chiRouter, "http.server", otelhttp.WithMessageEvents(otelhttp.ReadEvents, otelhttp.WriteEvents))
-
 	api.HandlerFromMux(router, chiRouter)
-
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
@@ -79,6 +73,10 @@ func main() {
 		WriteTimeout:      cfg.HTTPWriteTimeout,
 		IdleTimeout:       cfg.HTTPIdleTimeout,
 	}
+
+	scannerCtx, scannerCancel := context.WithCancel(ctx)
+	go c.PositionScanner.Run(scannerCtx)
+	c.PositionPool.Start(scannerCtx, cfg.PositionWorkers)
 
 	serverErr := make(chan error, 1)
 	go func() {
@@ -94,4 +92,18 @@ func main() {
 	case <-ctx.Done():
 		logger.Info("shutdown signal received")
 	}
+
+	logger.Info("starting graceful shutdown")
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+	defer shutdownCancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		logger.Error("server shutdown failed", slog.String("error", err.Error()))
+	}
+
+	scannerCancel()
+
+	c.PositionPool.Stop()
+
+	logger.Info("shutdown complete")
 }
